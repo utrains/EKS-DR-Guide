@@ -112,4 +112,10 @@ Use the script and pipeline provided to:
 
 ## Conclusion
 
-You have been through our Disaster Recovery (DR) strategy using an active-passive model across two AWS regions. The primary EKS cluster operates in Region A, while a standby cluster is provisioned in Region B and kept in sync through automation. To ensure application state and data integrity, we use Velero to back up Kubernetes resources and persistent volumes (EBS). These backups are stored in an S3 bucket with cross-region replication enabled to the standby region. On the infrastructure side, the entire secondary environment is defined using Terraform, allowing for consistent and repeatable provisioning of the failover cluster. Additionally, we leverage a CI/CD pipeline (GitHub Actions) to automate the failover process. This includes deploying infrastructure, configuring Velero, and triggering the restore from the most recent backup. 
+You have been through  our disaster recovery (DR) plan, we created a setup that protects our EKS (Elastic Kubernetes Service) environment in case something goes wrong in one AWS region. We use an active-passive strategy, which means the main cluster runs in Region A, and a second (standby) cluster is ready in Region B.
+
+To back up our applications and data, we use Velero, a tool that saves Kubernetes resources and storage (like EBS volumes). These backups are stored in an S3 bucket, and AWS automatically copies them to the second region. This way, we always have a copy of everything, even if one region fails.
+
+We use Terraform to define and manage the infrastructure in both regions. This means we can quickly and reliably create or rebuild the standby environment when needed. To make recovery easier and faster, we’ve set up a GitHub Actions pipeline. This pipeline helps automate the process of setting up the standby environment, restoring data, and bringing the applications back online.
+
+Overall, this setup helps us reduce downtime and data loss. It also makes it easier to test our disaster recovery plan regularly, so we know it works when we really need it.
