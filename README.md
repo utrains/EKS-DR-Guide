@@ -1,4 +1,4 @@
-## **Project Resume: EKS Disaster Recovery Implementation**
+# **Project Resume: EKS Disaster Recovery Implementation**
 
 ### **Objective**
 
@@ -26,38 +26,6 @@ Design and implement a **cross-region Disaster Recovery (DR) strategy** for an e
   * No automated cross-region failover or cluster recovery
 
 
-### **Deliverables**
-
-1. **Epic Definition**
-
-   * Project name, acceptance criteria, and measurable success indicators
-
-2. **User Stories**
-
-   * Structured tasks covering backup, replication, restoration, and testing
-
-3. **Reference Architecture**
-
-   * Multi-region EKS DR architecture with AWS-native and open-source tooling
-
-4. **Automation Scripts**
-
-   * Velero setup for Kubernetes backups
-   * Terraform scripts for EKS re-provisioning
-   * AWS Backup plans and replication configuration
-
-5. **Testing & Validation**
-
-   * Disaster recovery simulation runbook
-   * Documentation of RTO (Recovery Time Objective) and RPO (Recovery Point Objective)
-
-
-### **Success Criteria**
-
-* Full recovery of applications and infrastructure in a new region within targeted RTO and RPO.
-* Automated, auditable backup and replication processes.
-* Documented, repeatable, and tested DR procedures.
-
 Now let's go through it.
 
 ## 1. Epic Name
@@ -74,29 +42,7 @@ Now let's go through it.
 * The entire process can be triggered via CI/CD or manually.
 
 
-## 3. Initial User Stories
-
-**US01 — EBS Volume Backup:**
-
-> As an SRE, I want to automate the backup and cross-region replication of EBS volumes to ensure the availability of critical data in the event of a disaster.
-
-**US02 — Kubernetes Resource Backup:**
-
-> As an SRE, I want to use Velero to back up Kubernetes resources into a versioned S3 bucket to allow quick restoration.
-
-**US03 — Automated Cluster Re-creation in Secondary Region:**
-
-> As an SRE, I want to redeploy an identical EKS cluster in another region via Terraform, including worker nodes, to guarantee a fast recovery.
-
-**US04 — Automated Restoration in Recovery Region:**
-
-> As an SRE, I want to orchestrate the restoration of my Kubernetes and EBS backups in a remote cluster.
-
-**US05 — Manual DR Simulation Test:**
-
-> As an SRE, I want to trigger an on-demand disaster recovery test and receive a report on recovery time and data integrity.
-
-## 4. EKS Disaster Recovery Architecture (Multi-region)
+## 3. EKS Disaster Recovery Architecture (Multi-region)
 
 ![image](https://github.com/user-attachments/assets/5a8e3f8c-f0fa-4210-aecd-b3e3c51c9ad1)
 
@@ -105,22 +51,36 @@ Now let's go through it.
 * **S3 cross-region replication**: to sync backups to the failover region
 * **Terraform/Helm**: for infrastructure-as-code and automation
 
-## 5. Automation Scripts (Velero + AWS Backup)
+## 4. EKS Disaster Recovery (DR) Strategy 
 
-### Velero Installation (with AWS Plugin)
+### Overview
+This project implements a cross-region Disaster Recovery (DR) solution for Kubernetes workloads hosted on Amazon EKS. The design ensures that in case of a regional outage, critical workloads and data can be restored in a secondary AWS region.
 
+### a. Backup & Replication
+- **Velero**: Backup and restore Kubernetes resources and persistent volumes.
+- **AWS Backup**: Schedule and manage EBS volume backups.
+- **S3 with cross-region replication**: Store Velero backups and replicate them to the target region.
+
+### b. Infrastructure as Code
+- **Terraform**: Provision EKS clusters and related infrastructure in the secondary region.
+
+### c. DR Orchestration
+- **GitHub Actions / Jenkins Pipelines**: Trigger automated failover and restore operations.
+
+## 5. Setup Instructions
+
+### Step 1: Install Velero in Primary Region
 ```bash
 velero install \
-    --provider aws \
-    --plugins velero/velero-plugin-for-aws:v1.7.0 \
-    --bucket eks-velero-backup \
-    --backup-location-config region=us-east-1 \
-    --snapshot-location-config region=us-east-1 \
-    --secret-file ./velero-credentials-aws
+  --provider aws \
+  --plugins velero/velero-plugin-for-aws:v1.7.0 \
+  --bucket eks-velero-backup \
+  --backup-location-config region=us-east-1 \
+  --snapshot-location-config region=us-east-1 \
+  --secret-file ./velero-credentials-aws
 ```
 
-### Daily Backup Schedule
-
+### Step 2: Schedule Daily Backups
 ```bash
 velero create schedule daily-backup \
   --schedule="0 1 * * *" \
@@ -128,35 +88,25 @@ velero create schedule daily-backup \
   --ttl 168h
 ```
 
-### Restore in Secondary Cluster
+### Step 3: Enable S3 Cross-Region Replication
+Use a replication rule in the S3 bucket settings to replicate Velero backups to the secondary region.
 
+### Step 4: Terraform Deployment in Secondary Region
+Provision standby infrastructure (see `terraform/` folder).
+
+### Step 5: Restore in Secondary Region
 ```bash
 velero restore create --from-backup daily-backup-2025-07-01-01-00
 ```
 
-### AWS Backup Plan (Terraform Snippet)
+## 6. Files Included
+- `scripts/restore-test.sh`: Script to simulate and test recovery.
+- `terraform/`: Contains Terraform modules to deploy EKS and supporting resources.
+- `.github/workflows/failover.yml`: GitHub Actions pipeline to trigger DR restoration.
 
-```hcl
-resource "aws_backup_plan" "eks_ebs_plan" {
-  name = "eks-ebs-backup-plan"
-
-  rule {
-    rule_name         = "daily"
-    target_vault_name = aws_backup_vault.eks_vault.name
-    schedule          = "cron(0 1 * * ? *)"
-    lifecycle {
-      delete_after = 30
-    }
-  }
-}
-```
-
-## Additional Deliverables
-
-You can also provide the student with:
-
-* A `README.md` file documenting the full DR approach
-* Scripts for testing restoration
-* Terraform module for building the secondary cluster
-* An example GitHub Actions or Jenkins pipeline for triggering failover and recovery
+## 7. Testing the DR Plan
+Use the script and pipeline provided to:
+- Delete a namespace or simulate outage
+- Restore the namespace from Velero backups in another region
+- Validate application health and data integrity
 
